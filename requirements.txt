@@ -1,0 +1,6 @@
+boto3
+pyspark
+scikit-learn
+mlflow
+joblib
+pandas

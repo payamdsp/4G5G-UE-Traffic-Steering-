@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  emr-spark-job:
+    image: bitnami/spark:latest
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "spark-submit --master local[2] /app/feature_engineering/spark_feature_job.py"
+    volumes:
+      - ./:/app
+
+  mlflow:
+    image: mlflow/mlflow:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root s3://your-bucket/mlflow/
+    volumes:
+      - ./mlflow:/mlflow
+
+  traffic-steering-controller:
+    build: .
+    depends_on:
+      - mlflow
+    environment:
+      - FEATURE_FILE=features/traffic_steering/
+    command: python closed_loop/traffic_steering_controller.py
+    volumes:
+      - ./:/app
+
+  data-collector:
+    build: .
+    command: python data_pipeline/data_collection.py
+    volumes:
+      - ./:/app
